@@ -1,2 +1,2 @@
 # downmail
-Self-hosted antisocial email client written in Python.
+Self-hosted antisocial Markdown email client written in Python.
