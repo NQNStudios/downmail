@@ -45,6 +45,8 @@ class MailAccount(object):
     address.
     """
 
+    config_file = os.path.expanduser("~") + '/.downmail'
+
     def __init__(self, imap_server, imap_port, smtp_server, smtp_port,
                  address, password):
         # Connect to the IMAP server
@@ -62,8 +64,8 @@ class MailAccount(object):
         # Save the email address we're logged into
         self._email_address = address
 
-        if os.path.isfile('.downmail'):
-            with open('.downmail', 'r') as f:
+        if os.path.isfile(self.config_file):
+            with open(self.config_file, 'r') as f:
                 self.config = json.load(f)
         else:
             self.config = {
@@ -73,7 +75,7 @@ class MailAccount(object):
 
     def __del__(self):
         # Serialize JSON
-        with open('.downmail', 'w') as f:
+        with open(self.config_file, 'w') as f:
             json.dump(self.config, f)
 
         # Log out of the email account on the IMAP server
