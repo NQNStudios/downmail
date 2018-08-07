@@ -13,7 +13,7 @@ with open("README.md", "r") as fh:
         url="https://github.com/NQNStudios/downmail",
         packages=setuptools.find_packages(),
         classifiers=(
-            "Programming Language :: Python :: 3",
+            "Programming Language :: Python :: 2",
             "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
             "Operating System :: OS Independent",
         ),
