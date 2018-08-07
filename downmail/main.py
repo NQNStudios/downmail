@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 if __name__ == "__main__":
     load_dotenv()
 
+
     # TODO get the user's credentials from CLI if env vars aren't set
     # (for now, assuming Gmail is the host)
 
@@ -11,9 +12,23 @@ if __name__ == "__main__":
     mail_account = MailAccount.from_environment_vars()
 
 
-    unanswered = mail_account.get_unanswered_messages()
-    for i in range(50):
-        message = unanswered.next()
-        print(message)
+    while True:
+        input_line = raw_input('$ ')
 
-    # mail_account.flag_message_answered(message.id)
+        if input_line == "exit":
+            print("Quitting Downmail")
+            break
+
+        elif input_line == "messages":
+
+            unanswered = mail_account.get_unanswered_messages()
+
+            while True:
+                try:
+                    message = unanswered.next()
+                    print(message)
+                except StopIteration:
+                    break
+
+        elif input_line == "senders":
+            mail_account.audit_senders()

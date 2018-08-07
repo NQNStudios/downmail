@@ -1,11 +1,12 @@
 import os
+import os.path
 import imaplib
 import smtplib
 import markdown
 from email.mime.text import MIMEText
 from email.header import Header
 from email import email
-
+import json
 
 class Message(object):
     def __init__(self, num, subject, sender, date, text):
@@ -19,6 +20,13 @@ class Message(object):
 
         self.date = date
         self.text = text
+
+    def print_header(self):
+        print(self)
+
+    def print_full(self):
+        print(self)
+        print(self.text)
 
     def __str__(self):
         return """
@@ -53,7 +61,20 @@ class MailAccount(object):
         # Save the email address we're logged into
         self._email_address = address
 
+        if os.path.isfile('.downmail'):
+            with open('.downmail', 'r') as f:
+                self.config = json.load(f)
+        else:
+            self.config = {
+                'accepted_senders': [],
+                'rejected_senders': [],
+            }
+
     def __del__(self):
+        # Serialize JSON
+        with open('.downmail', 'w') as f:
+            json.dump(self.config, f)
+
         # Log out of the email account on the IMAP server
         self._imap_server.close()
         self._imap_server.logout()
@@ -106,13 +127,24 @@ class MailAccount(object):
         for num in data[0].split():
             type, data = self.imap.fetch(num, '(BODY.PEEK[])')
             message = email.message_from_string(data[0][1])
-            yield Message(
+            message = Message(
                 num,
                 message['Subject'],
                 message['From'],
                 message['Date'],
                 all_payload_text(message),
             )
+            if message.sender_address in self.config['accepted_senders']:
+                yield message
+            else:
+                self.flag_message_answered(num)
+
+        raise StopIteration
+
+    def audit_senders():
+        pass
+        # TODO when a new sender is allowed through, we have to search for
+        # Answered messages from that sender, and re-process them.
 
     def send_message_plain(self, recipients, subject, body_text):
         """ Send a plain utf8 email to the specified list of addresses

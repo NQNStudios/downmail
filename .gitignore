@@ -1,5 +1,6 @@
 .env
 *.swp
+.downmail
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
