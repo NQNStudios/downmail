@@ -1,2 +1,3 @@
 markdown
-flask
+python-dotenv
+html2text

@@ -1,22 +1,25 @@
 import os
 from email import email
 from mailaccount import MailAccount
-from reminder import Reminder
+from dotenv import load_dotenv
 
 if __name__ == "__main__":
+    load_dotenv()
+
+    # TODO get the user's credentials from CLI if env vars aren't set
+    # (for now, assuming Gmail is the host)
+
     # Connect to the bot mail account
     mail_account = MailAccount.from_environment_vars()
 
-    # Retrieve the configured reminder keyword from environment variable
-    # configuration
-    subject_keyword = os.environ['LB_SUBJECT_KEYWORD']
-
     # Open the inbox
     mail_account.imap.select('Inbox')
+    # TODO print out all inboxes to make sure there's not one/several getting
+    # missed because of Google Inbox
 
     # Retrieve every unanswered email whose subject line includes the keyword.
     # These represent reminders that have yet to be sent
-    search_criteria = '(UNANSWERED) (SUBJECT "' + subject_keyword + '")'
+    search_criteria = '(UNANSWERED)'
     typ, data = mail_account.imap.search(None, search_criteria)
 
     # Retrieve the content of every reminder that's waiting to be sent

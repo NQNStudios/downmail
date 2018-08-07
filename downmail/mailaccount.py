@@ -37,12 +37,12 @@ class MailAccount(object):
         defined in environment variables
         """
 
-        imap_server = os.environ['LB_IMAP_SERVER']
-        imap_port = os.environ['LB_IMAP_PORT']
-        smtp_server = os.environ['LB_SMTP_SERVER']
-        smtp_port = os.environ['LB_SMTP_PORT']
-        address = os.environ['LB_ADDRESS']
-        password = os.environ['LB_PASSWORD']
+        imap_server = os.environ['DM_IMAP_SERVER']
+        imap_port = os.environ['DM_IMAP_PORT']
+        smtp_server = os.environ['DM_SMTP_SERVER']
+        smtp_port = os.environ['DM_SMTP_PORT']
+        address = os.environ['DM_ADDRESS']
+        password = os.environ['DM_PASSWORD']
 
         return cls(imap_server, imap_port, smtp_server, smtp_port,
                    address, password)
@@ -53,7 +53,7 @@ class MailAccount(object):
         return self._imap_server
 
     def send_message_plain(self, recipients, subject, body_text):
-        """ Send a markdown-formatted email to the specified list of addresses
+        """ Send a plain utf8 email to the specified list of addresses
         """
 
         # Construct the message as a MIMEText
