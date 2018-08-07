@@ -8,13 +8,26 @@ from email import email
 
 
 class Message(object):
-    def __init__(self, subject, sender, text):
+    def __init__(self, num, subject, sender, date, text):
+        self.id = num
         self.subject = subject
         self.sender = sender
+        self.sender_address = self.sender
+
+        if self.sender.count('<'):
+            self.sender_address = self.sender[self.sender.find('<')+1:self.sender.find('>')]
+
+        self.date = date
         self.text = text
 
     def __str__(self):
-        return "----------\nFrom: {}\nSubject: {}\n----------\n{}".format(self.sender, self.subject, self.text)
+        return """
+----------
+From: {}
+Subject: {}
+Date: {}
+----------
+""".format(self.sender, self.subject, self.date)
 
 
 class MailAccount(object):
@@ -54,9 +67,7 @@ class MailAccount(object):
         """
 
         imap_server = os.environ['DM_IMAP_SERVER']
-        print(imap_server)
         imap_port = int(os.environ['DM_IMAP_PORT'])
-        print(imap_port)
         smtp_server = os.environ['DM_SMTP_SERVER']
         smtp_port = int(os.environ['DM_SMTP_PORT'])
         address = os.environ['DM_ADDRESS']
@@ -73,6 +84,18 @@ class MailAccount(object):
     def get_unanswered_messages(self):
         return self.get_messages("(UNANSWERED)")
 
+    def flag_message_answered(self, num):
+        self.add_flag(num, 'Answered')
+
+    def add_flag(self, num, flag):
+        self.imap.store(num, '+FLAGS', '\\' + flag)
+
+    def remove_flag(self, num, flag):
+        self.imap.store(num, '-FLAGS', '\\' + flag)
+
+    def set_flag(self, num, flag):
+        self.imap.store(num, 'FLAGS', '\\' + flag)
+
     def get_messages(self, search_criteria):
         ''' Generator that searches the user's inbox using a set of valid email criteria
         '''
@@ -84,8 +107,10 @@ class MailAccount(object):
             type, data = self.imap.fetch(num, '(BODY.PEEK[])')
             message = email.message_from_string(data[0][1])
             yield Message(
+                num,
                 message['Subject'],
-                "todo", # TODO return the sender
+                message['From'],
+                message['Date'],
                 all_payload_text(message),
             )
 
@@ -131,3 +156,4 @@ def all_payload_text(email):
                 text += part.get_payload()
 
     return text
+
