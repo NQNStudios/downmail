@@ -31,11 +31,12 @@ class Message(object):
     def __str__(self):
         return """
 ----------
+#{}
 From: {}
 Subject: {}
 Date: {}
 ----------
-""".format(self.sender, self.subject, self.date)
+""".format(self.id, self.sender, self.subject, self.date)
 
 
 class MailAccount(object):
@@ -102,10 +103,11 @@ class MailAccount(object):
         """ The bot's connected IMAP server """
         return self._imap_server
 
-    def get_unanswered_messages(self):
-        return self.get_messages("(UNANSWERED)")
+    def get_unanswered_messages(self, filtered=True):
+        return self.get_messages("(UNANSWERED)",filtered)
 
     def flag_message_answered(self, num):
+        print("flagging {} answered".format(num))
         self.add_flag(num, 'Answered')
 
     def add_flag(self, num, flag):
@@ -117,14 +119,14 @@ class MailAccount(object):
     def set_flag(self, num, flag):
         self.imap.store(num, 'FLAGS', '\\' + flag)
 
-    def get_messages(self, search_criteria):
+    def get_messages(self, search_criteria, filtered=True):
         ''' Generator that searches the user's inbox using a set of valid email criteria
         '''
         # TODO link to a resource on what these criteria are, what their syntax
         # is, etc.
 
         typ, data = self.imap.search(None, search_criteria)
-        for num in data[0].split():
+        for num in reversed(data[0].split()):
             type, data = self.imap.fetch(num, '(BODY.PEEK[])')
             message = email.message_from_string(data[0][1])
             message = Message(
@@ -134,17 +136,66 @@ class MailAccount(object):
                 message['Date'],
                 all_payload_text(message),
             )
-            if message.sender_address in self.config['accepted_senders']:
+            if (not filtered) or message.sender_address in self.config['accepted_senders']:
                 yield message
             else:
                 self.flag_message_answered(num)
 
         raise StopIteration
 
-    def audit_senders():
-        pass
-        # TODO when a new sender is allowed through, we have to search for
-        # Answered messages from that sender, and re-process them.
+    def check_messages(self):
+        unanswered = self.get_unanswered_messages()
+
+        while True:
+            try:
+                message = unanswered.next()
+
+                while True:
+                    print(message)
+                    input_line = raw_input('Open/Reply/Done/Skip? ')
+                    if input_line == "O" or input_line == "o":
+                        message.print_full()
+                    elif input_line == "R" or input_line == "r":
+                        # TODO open Vim or default editor to compose a reply in
+                        # markdown
+                        break
+                    elif input_line == "D" or input_line == "d":
+                        self.flag_message_answered(message.id)
+                        break
+                    else:
+                        break
+
+
+
+            except StopIteration:
+                break
+
+
+    def audit_senders(self, flag='Recent'):
+        recent = self.get_messages('(' + flag + ')', False)
+
+        while True:
+            try:
+                message = recent.next()
+
+                print(message)
+                if message.sender_address not in self.config['rejected_senders'] and message.sender_address not in self.config['accepted_senders']:
+                    input_line = raw_input('Allow messages from sender {}? (y/n/s to skip) '.format(message.sender))
+
+                    if input_line == "y" or input_line == "Y":
+                        self.config['accepted_senders'].append(message.sender_address)
+                        # TODO when a new sender is allowed through, we have to search for
+                        # Answered messages from that sender, and re-process them.
+
+                    elif input_line == "n" or input_line == "N":
+                        self.config['rejected_senders'].append(message.sender_address)
+                        self.flag_message_answered(message.id)
+                    elif input_line == "s" or True:
+                        pass
+
+            except StopIteration:
+                break
+
 
     def send_message_plain(self, recipients, subject, body_text):
         """ Send a plain utf8 email to the specified list of addresses

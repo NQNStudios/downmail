@@ -20,15 +20,9 @@ if __name__ == "__main__":
             break
 
         elif input_line == "messages":
-
-            unanswered = mail_account.get_unanswered_messages()
-
-            while True:
-                try:
-                    message = unanswered.next()
-                    print(message)
-                except StopIteration:
-                    break
+            mail_account.check_messages()
 
         elif input_line == "senders":
             mail_account.audit_senders()
+        elif input_line == "allsenders":
+            mail_account.audit_senders('All')
