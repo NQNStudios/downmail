@@ -19,6 +19,9 @@ if __name__ == "__main__":
             print("Quitting Downmail")
             break
 
+        elif input_line == "send":
+            mail_account.compose_message()
+
         elif input_line == "messages":
             mail_account.check_messages()
 

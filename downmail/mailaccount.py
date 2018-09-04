@@ -1,12 +1,17 @@
 import os
 import os.path
 import imaplib
-import smtplib
 import markdown
-from email.mime.text import MIMEText
 from email.header import Header
 from email import email
 import json
+
+import smtplib
+from os.path import basename
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import COMMASPACE, formatdate
 
 class Message(object):
     def __init__(self, num, subject, sender, date, text):
@@ -198,35 +203,62 @@ class MailAccount(object):
             except StopIteration:
                 break
 
+    def compose_message(self):
+        recipients = [addr.strip() for addr in raw_input('recipients? ').split(',')]
+        # TODO validate email addresses
+        subject = raw_input('subject? ')
+        content = raw_input('content? ') # TODO this should open a text editor for a markdown email
+        attachments = [os.path.expanduser(path.strip()) for path in raw_input('attachment paths? ').split(',')]
+        self.send_message_plain(recipients, subject, content, attachments)
 
-    def send_message_plain(self, recipients, subject, body_text):
+    def _send_message(self, recipients, subject, content, encoding, files=[]):
+        # Construct the message as a MIMEMultipart with MIMEText
+
+        # source of attachment code: https://stackoverflow.com/a/3363254
+        message = MIMEMultipart()
+        message['From'] = self._email_address
+        message['To'] = COMMASPACE.join(recipients)
+        message['Date'] = formatdate(localtime=True)
+        message['Subject'] = Header(subject.encode('utf-8'), 'utf-8')
+
+        message.attach(MIMEText(content.encode('utf-8'), encoding, 'utf-8'))
+
+        for f in files:
+            if f != "":
+                try:
+                    with open(f, 'rb') as ff:
+                        part = MIMEApplication(
+                            ff.read(),
+                            Name=basename(f),
+                        )
+                    # After the file is closed
+                    part['Content-Disposition'] = 'attachment; filename="{}"'.format(basename(f))
+                    message.attach(part)
+                except:
+                    print("Couldn't attach {}.".format(f))
+                    still_send = raw_input("Send anyway (Y/n)? ")
+                    # TODO should be an option to correct the path and try again
+                    if still_send.lower() == "y":
+                        continue
+                    else:
+                        return
+
+
+
+        self._smtp_server.sendmail(self._email_address, recipients,
+                                   message.as_string())
+
+    def send_message_plain(self, recipients, subject, body_text, files=[]):
         """ Send a plain utf8 email to the specified list of addresses
         """
+        self._send_message(recipients, subject, body_text, 'plain', files)
 
-        # Construct the message as a MIMEText
-        message = MIMEText(body_text.encode('utf-8'), 'plain', 'utf-8')
-        message['From'] = self._email_address
-        message['To'] = recipients[0]
-        message['Subject'] = Header(subject.encode('utf-8'), 'utf-8')
-
-        self._smtp_server.sendmail(self._email_address, recipients,
-                                   message.as_string())
-
-    def send_message_markdown(self, recipients, subject, body_markdown):
+    def send_message_markdown(self, recipients, subject, body_markdown, files=[]):
         """ Send a markdown-formatted email to the specified list of addresses
         """
-
         # Convert the markdown to HTML
         body_html = markdown.markdown(body_markdown)
-
-        # Construct the message as a MIMEText
-        message = MIMEText(body_html.encode('utf-8'), "html", 'utf-8')
-        message['From'] = self._email_address
-        message['To'] = recipients[0]
-        message['Subject'] = Header(subject.encode('utf-8'), 'utf-8')
-
-        self._smtp_server.sendmail(self._email_address, recipients,
-                                   message.as_string())
+        self._send_message(recipients, subject, body_html, 'html', files)
 
 
 # TODO eventually we'll want to handle other types of payloads
