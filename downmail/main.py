@@ -1,9 +1,10 @@
 from mailaccount import MailAccount
 from dotenv import load_dotenv
+from os.path import expanduser
 
-if __name__ == "__main__":
-    load_dotenv()
-
+def main():
+    env_file = expanduser("~") + '/.downmail.env'
+    load_dotenv(env_file)
 
     # TODO get the user's credentials from CLI if env vars aren't set
     # (for now, assuming Gmail is the host)
@@ -29,3 +30,7 @@ if __name__ == "__main__":
             mail_account.audit_senders()
         elif input_line == "allsenders":
             mail_account.audit_senders('All')
+
+
+if __name__ == "__main__":
+    main()
