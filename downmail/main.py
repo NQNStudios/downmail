@@ -20,6 +20,9 @@ def main():
             print("Quitting Downmail")
             break
 
+        elif input_line == "help":
+            print('send/messages/senders/allsenders')
+
         elif input_line == "send":
             mail_account.compose_message()
 

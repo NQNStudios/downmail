@@ -4,7 +4,7 @@ with open("README.md", "r") as readme:
     with open("requirements.txt", "r") as requirements:
         setuptools.setup(
             name='downmail',
-            version='0.0.8',
+            version='0.0.9',
             author="Nat Quayle Nelson",
             author_email="natquaylenelson@gmail.com",
             description="Antisocial Markdown email client.",
