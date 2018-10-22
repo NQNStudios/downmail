@@ -1,4 +1,4 @@
-from mailaccount import MailAccount
+from downmail.mailaccount import MailAccount
 from dotenv import load_dotenv
 from os.path import expanduser
 
@@ -14,7 +14,7 @@ def main():
 
 
     while True:
-        input_line = raw_input('$ ')
+        input_line = input('$ ')
 
         if input_line == "exit":
             print("Quitting Downmail")

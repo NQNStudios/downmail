@@ -3,7 +3,7 @@ import os.path
 import imaplib
 import markdown
 from email.header import Header
-from email import email
+import email
 import json
 
 import smtplib
