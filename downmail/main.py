@@ -9,9 +9,13 @@ def main():
     # TODO get the user's credentials from CLI if env vars aren't set
     # (for now, assuming Gmail is the host)
 
-    # Connect to the bot mail account
-    mail_account = MailAccount.from_environment_vars()
-
+    while True:
+        try:
+            # Connect to the bot mail account
+            mail_account = MailAccount.from_environment_vars()
+            break
+        except:
+            print("It seems you haven't configured Downmail with your email accounts yet. The following steps will guide you through generating a .downmail.env file.")
 
     while True:
         input_line = input('$ ')
