@@ -14,17 +14,22 @@ from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
 
 class Message(object):
-    def __init__(self, num, subject, sender, date, text):
+    def __init__(self, account, num, subject, sender, recipient, date, text):
+        self.account = account
         self.id = num
         self.subject = subject
         self.sender = sender
+        self.recipient = recipient
         self.sender_address = self.sender
 
-        if self.sender.count('<'):
+        if self.sender and self.sender.count('<'):
             self.sender_address = self.sender[self.sender.find('<')+1:self.sender.find('>')]
 
         self.date = date
         self.text = text
+
+    def delete(self):
+        self.account.delete_message(self.id)
 
     def print_header(self):
         print(self)
@@ -38,10 +43,11 @@ class Message(object):
 ----------
 #{}
 From: {}
+To: {}
 Subject: {}
 Date: {}
 ----------
-""".format(self.id, self.sender, self.subject, self.date)
+""".format(self.id, self.sender, self.recipient, self.subject, self.date)
 
 
 class MailAccount(object):
@@ -50,10 +56,7 @@ class MailAccount(object):
     address.
     """
 
-    config_file = os.path.expanduser("~") + '/.downmail'
-
-    def __init__(self, imap_server, imap_port, smtp_server, smtp_port,
-                 address, password):
+    def __init__(self, imap_server, imap_port, smtp_server, smtp_port, address, password):
         # Connect to the IMAP server
         self._imap_server = imaplib.IMAP4_SSL(imap_server, imap_port)
 
@@ -69,20 +72,7 @@ class MailAccount(object):
         # Save the email address we're logged into
         self._email_address = address
 
-        if os.path.isfile(self.config_file):
-            with open(self.config_file, 'r') as f:
-                self.config = json.load(f)
-        else:
-            self.config = {
-                'accepted_senders': [],
-                'rejected_senders': [],
-            }
-
     def __del__(self):
-        # Serialize JSON
-        with open(self.config_file, 'w') as f:
-            json.dump(self.config, f)
-
         # Log out of the email account on the IMAP server
         self._imap_server.close()
         self._imap_server.logout()
@@ -90,20 +80,34 @@ class MailAccount(object):
         self._smtp_server.close()
 
     @classmethod
-    def from_environment_vars(cls):
+    def from_config_file(cls, address, filename=''):
         """ Construct an instance of MailAccount using a configuration
         defined in environment variables
         """
+        if len(filename) == 0:
+            filename = os.path.join(os.path.expanduser('~'), '.config/downmail/accounts.json')
 
-        imap_server = os.environ['DM_IMAP_SERVER']
-        imap_port = int(os.environ['DM_IMAP_PORT'])
-        smtp_server = os.environ['DM_SMTP_SERVER']
-        smtp_port = int(os.environ['DM_SMTP_PORT'])
-        address = os.environ['DM_ADDRESS']
-        password = os.environ['DM_PASSWORD']
+        with open(filename, 'r') as f:
+            config_json = json.load(f)
+            for account in config_json['accounts']:
+                if account['address'] == address:
+                    address = account['address']
+                    password = account['pw']
+                    imap_server = 'imap.gmail.com'
+                    imap_port = 993
+                    smtp_server = 'smtp.gmail.com'
+                    smtp_port = 465
+                    try:
+                        imap_server = account['imap_server']
+                        imap_port = account['imap_port']
+                        smtp_server = account['smtp_server']
+                        smtp_port = account['smtp_port']
+                    except KeyError:
+                        pass
 
-        return cls(imap_server, imap_port, smtp_server, smtp_port,
-                   address, password)
+
+                    return cls(imap_server, imap_port, smtp_server, smtp_port,
+                            address, password)
 
     @property
     def imap(self):
@@ -117,6 +121,10 @@ class MailAccount(object):
         print("flagging {} answered".format(num))
         self.add_flag(num, 'Answered')
 
+    def delete_message(self, num):
+        print("flagging {} deleted".format(num))
+        self.add_flag(num, 'Deleted')
+
     def add_flag(self, num, flag):
         self.imap.store(num, '+FLAGS', '\\' + flag)
 
@@ -129,37 +137,36 @@ class MailAccount(object):
     def get_messages(self, search_criteria, filtered=True):
         ''' Generator that searches the user's inbox using a set of valid email criteria
         '''
-        # TODO link to a resource on what these criteria are, what their syntax
-        # is, etc.
+        # TODO link to a resource on what these criteria are, what their syntax is, etc.
 
-        typ, data = self.imap.search(None, search_criteria)
+        _, data = self.imap.search(None, search_criteria)
         for num in reversed(data[0].split()):
-            type, data = self.imap.fetch(num, '(BODY.PEEK[])')
-            message = email.message_from_string(data[0][1])
+            _, data = self.imap.fetch(num, '(BODY.PEEK[])')
+            message = email.message_from_string(str(data[0][1]))
+            print(message.keys())
             message = Message(
+                self,
                 num,
-                message['Subject'],
-                message['From'],
-                message['Date'],
+                message[b'Subject'],
+                message[b'From'],
+                message[b'To'],
+                message[b'Date'],
                 all_payload_text(message),
             )
-            if (not filtered) or message.sender_address in self.config['accepted_senders']:
-                yield message
-            else:
-                self.flag_message_answered(num)
+            print(message)
+            print(message.text)
+            yield message
 
         raise StopIteration
 
     def check_messages(self):
         unanswered = self.get_unanswered_messages()
 
-        while True:
+        for message in unanswered:
             try:
-                message = unanswered.next()
-
                 while True:
                     print(message)
-                    input_line = raw_input('Open/Reply/Done/Skip? ')
+                    input_line = input('Open/Reply/Done/Skip? ')
                     if input_line == "O" or input_line == "o":
                         message.print_full()
                     elif input_line == "R" or input_line == "r":
@@ -178,37 +185,12 @@ class MailAccount(object):
                 break
 
 
-    def audit_senders(self, flag='Recent'):
-        recent = self.get_messages('(' + flag + ')', False)
-
-        while True:
-            try:
-                message = recent.next()
-
-                print(message)
-                if message.sender_address not in self.config['rejected_senders'] and message.sender_address not in self.config['accepted_senders']:
-                    input_line = raw_input('Allow messages from sender {}? (y/n/s to skip) '.format(message.sender))
-
-                    if input_line == "y" or input_line == "Y":
-                        self.config['accepted_senders'].append(message.sender_address)
-                        # TODO when a new sender is allowed through, we have to search for
-                        # Answered messages from that sender, and re-process them.
-
-                    elif input_line == "n" or input_line == "N":
-                        self.config['rejected_senders'].append(message.sender_address)
-                        self.flag_message_answered(message.id)
-                    elif input_line == "s" or True:
-                        pass
-
-            except StopIteration:
-                break
-
     def compose_message(self):
-        recipients = [addr.strip() for addr in raw_input('recipients? ').split(',')]
+        recipients = [addr.strip() for addr in input('recipients? ').split(',')]
         # TODO validate email addresses
-        subject = raw_input('subject? ')
-        content = raw_input('content? ') # TODO this should open a text editor for a markdown email
-        attachments = [os.path.expanduser(path.strip()) for path in raw_input('attachment paths? ').split(',')]
+        subject = input('subject? ')
+        content = input('content? ') # TODO this should open a text editor for a markdown email
+        attachments = [os.path.expanduser(path.strip()) for path in input('attachment paths? ').split(',')]
         self.send_message_plain(recipients, subject, content, attachments)
 
     def _send_message(self, recipients, subject, content, encoding, files=[]):
@@ -236,7 +218,7 @@ class MailAccount(object):
                     message.attach(part)
                 except:
                     print("Couldn't attach {}.".format(f))
-                    still_send = raw_input("Send anyway (Y/n)? ")
+                    still_send = input("Send anyway (Y/n)? ")
                     # TODO should be an option to correct the path and try again
                     if still_send.lower() == "y":
                         continue
@@ -265,12 +247,14 @@ class MailAccount(object):
 def all_payload_text(email):
     text = ''
 
-    if isinstance(email.get_payload(), basestring):
+    if isinstance(email.get_payload(), str):
         text = email.get_payload()
     else:
         for part in email.get_payload():
             if part.get_content_type() == 'text/plain':
                 text += part.get_payload()
+            else:
+                print(part.get_content_type())
 
     return text
 
