@@ -29,6 +29,7 @@ class Message(object):
         self.text = text
 
     def delete(self):
+        print('deleting {}'.format(self.subject))
         self.account.delete_message(self.id)
 
     def print_header(self):
@@ -142,19 +143,16 @@ class MailAccount(object):
         _, data = self.imap.search(None, search_criteria)
         for num in reversed(data[0].split()):
             _, data = self.imap.fetch(num, '(BODY.PEEK[])')
-            message = email.message_from_string(str(data[0][1]))
-            print(message.keys())
+            message = email.message_from_bytes(data[0][1])
             message = Message(
                 self,
                 num,
-                message[b'Subject'],
-                message[b'From'],
-                message[b'To'],
-                message[b'Date'],
+                message['Subject'],
+                message['From'],
+                message['To'],
+                message['Date'],
                 all_payload_text(message),
             )
-            print(message)
-            print(message.text)
             yield message
 
         raise StopIteration
@@ -253,8 +251,8 @@ def all_payload_text(email):
         for part in email.get_payload():
             if part.get_content_type() == 'text/plain':
                 text += part.get_payload()
-            else:
-                print(part.get_content_type())
+            #else:
+            #    print(part.get_content_type())
 
     return text
 

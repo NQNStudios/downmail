@@ -1,6 +1,7 @@
 import os
 import os.path
 import json
+import itertools
 from mailaccount import MailAccount
 
 class Filter(object):
@@ -11,10 +12,15 @@ class Filter(object):
     def run(self):
         for filter_group in self._config:
             for account in filter_group['accounts']:
+                print(account)
                 dm_account = MailAccount.from_config_file(account)
 
-                for message in dm_account.get_unanswered_messages():
-                    # TODO filter out blacklisted emails and bodies
+                # Filter out blacklisted senders and phrases
+                for message in itertools.islice(dm_account.get_unanswered_messages(), 100):
+                    if message.sender_address in filter_group['simple_blacklist']:
+                        message.delete()
+                        continue
+
                     for blacklist_rule in filter_group['blacklist']:
                         should_delete = False
                         if 'to' in blacklist_rule:
@@ -22,14 +28,14 @@ class Filter(object):
                                 should_delete = True
 
                         if 'from' in blacklist_rule:
-                            if message.recipient == blacklist_rule['from']:
+                            if message.sender_address == blacklist_rule['from']:
                                 should_delete = True
 
                         if should_delete and 'contains' in blacklist_rule:
                             should_delete = False
                             cant_contain = blacklist_rule['contains']
                             for badphrase in cant_contain:
-                                if message.text.lower().contains(badphrase):
+                                if (message.subject + message.text).lower().count(badphrase):
                                     should_delete = True
 
                         if should_delete:
