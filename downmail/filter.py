@@ -59,7 +59,7 @@ class Filter(object):
                             print('replacements applied to message')
                             print(message)
                             message.delete()
-                            dm_account.send_message_plain([dm_account._email_address], new_subject, new_text)
+                            dm_account.send_message_html([dm_account._email_address], new_subject, new_text)
 
 
 

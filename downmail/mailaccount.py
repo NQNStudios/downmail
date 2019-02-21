@@ -116,7 +116,7 @@ class MailAccount(object):
         return self._imap_server
 
     def get_unanswered_messages(self, filtered=True):
-        return self.get_messages("(UNANSWERED)",filtered)
+        return self.get_messages("(UNANSWERED UNDELETED)",filtered)
 
     def flag_message_answered(self, num):
         print("flagging {} answered".format(num))
@@ -238,6 +238,11 @@ class MailAccount(object):
         """
         # Convert the markdown to HTML
         body_html = markdown.markdown(body_markdown)
+        self._send_message(recipients, subject, body_html, 'html', files)
+
+    def send_message_html(self, recipients, subject, body_html, files=[]):
+        """ Send an HTML-formatted email to the specified list of addresses
+        """
         self._send_message(recipients, subject, body_html, 'html', files)
 
 
