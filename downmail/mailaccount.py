@@ -197,7 +197,10 @@ class MailAccount(object):
         # source of attachment code: https://stackoverflow.com/a/3363254
         message = MIMEMultipart()
         message['From'] = self._email_address
-        message['To'] = COMMASPACE.join(recipients)
+        if isinstance(recipients, str):
+            message['To'] = recipients
+        else:
+            message['To'] = COMMASPACE.join(recipients)
         message['Date'] = formatdate(localtime=True)
         message['Subject'] = Header(subject.encode('utf-8'), 'utf-8')
 
