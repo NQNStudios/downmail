@@ -16,7 +16,7 @@ class Filter(object):
                 dm_account = MailAccount.from_config_file(account)
 
                 # Filter out blacklisted senders and phrases
-                for message in itertools.islice(dm_account.get_unanswered_messages(), 100):
+                for message in itertools.islice(dm_account.get_unanswered_messages(), 10):
                     if 'simple_blacklist' in filter_group and message.sender_address in filter_group['simple_blacklist']:
                         message.delete()
                         continue
@@ -59,7 +59,7 @@ class Filter(object):
                             print('replacements applied to message')
                             print(message)
                             message.delete()
-                            dm_account.send_message_html([dm_account._email_address], new_subject, new_text)
+                            dm_account.send_message_html(dm_account._email_address, new_subject, new_text)
 
 
 
