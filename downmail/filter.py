@@ -43,10 +43,24 @@ class Filter(object):
                                 print(message)
                                 message.delete()
 
-                    # TODO apply replacements by copying the message with all of its payloads, replacing all instances of the problem with {What you want instead}, and sending that to self
+                    # apply replacements by copying the message  replacing all instances of the problem with {What you want instead}, and sending that to self
                     if 'replacements' in filter_group:
-                        for replacement_rule in filter_group['replacements']:
-                            pass
+                        # TODO this method discards all the other payloads. Whoops!
+                        new_subject = message.subject.lower()
+                        new_text = message.text.lower()
+                        for rule in filter_group['replacements']:
+                            for target in rule['from']:
+                                if new_subject.count(target.lower()) or new_text.count(target.lower()):
+                                    new_subject = new_subject.replace(target.lower(), '[{}]'.format(rule['to']))
+                                    new_text = new_text.replace(target.lower(), '[{}]'.format(rule['to']))
+
+                        # If a replacement needs to be applied, do it and delete the original
+                        if new_subject != message.subject.lower() or new_text != message.text.lower():
+                            print('replacements applied to message')
+                            print(message)
+                            message.delete()
+                            dm_account.send_message_plain([dm_account._email_address], new_subject, new_text)
+
 
 
 
