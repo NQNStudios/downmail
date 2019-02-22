@@ -1,3 +1,5 @@
+#! /usr/bin/env python3
+
 from downmail.mailaccount import MailAccount
 from dotenv import load_dotenv
 from os.path import expanduser

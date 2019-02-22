@@ -1,3 +1,3 @@
 #! /bin/bash
 
-python3 ~/downmail/downmail/client.py
+python3 ./downmail/client.py
