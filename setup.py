@@ -19,7 +19,7 @@ with open("README.md", "r") as readme:
             ),
             install_requires=requirements.readlines(),
             entry_points={
-                'console_scripts': ['downmail = downmail.client:main']
+                'console_scripts': ['downmail = downmail.client:main'],
                 'console_scripts': ['downmail-filter = downmail.filter:main']
             },
         )

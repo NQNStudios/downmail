@@ -115,6 +115,9 @@ class MailAccount(object):
         """ The bot's connected IMAP server """
         return self._imap_server
 
+    def get_unanswered_messages_raw(self, filtered=True):
+        return self.get_messages_raw("(UNANSWERED UNDELETED)",filtered)
+
     def get_unanswered_messages(self, filtered=True):
         return self.get_messages("(UNANSWERED UNDELETED)",filtered)
 
@@ -135,7 +138,16 @@ class MailAccount(object):
     def set_flag(self, num, flag):
         self.imap.store(num, 'FLAGS', '\\' + flag)
 
-    def get_messages(self, search_criteria, filtered=True):
+    def get_messages_raw(self, search_criteria, filtered=True):
+        _, data = self.imap.search(None, search_criteria)
+        for num in reversed(data[0].split()):
+            _, data = self.imap.fetch(num, '(BODY.PEEK[])')
+            message = email.message_from_bytes(data[0][1])
+            yield message
+
+        raise StopIteration
+
+    def get_messages(self, search_criteria, filtered=True): #TODO filtered parameter is unused
         ''' Generator that searches the user's inbox using a set of valid email criteria
         '''
         # TODO link to a resource on what these criteria are, what their syntax is, etc.
@@ -247,6 +259,16 @@ class MailAccount(object):
         """ Send an HTML-formatted email to the specified list of addresses
         """
         self._send_message(recipients, subject, body_html, 'html', files)
+
+    def send_message_raw(self, recipients, raw_message, from_addr=''):
+        if len(from_addr) == 0:
+            from_addr = self._email_address
+        self._smtp_server.sendmail(from_addr, recipients, raw_message.as_string())
+
+    def send_message_raw_string(self, recipients, raw_message_str, from_addr=''):
+        if len(from_addr) == 0:
+            from_addr = self._email_address
+        self._smtp_server.sendmail(from_addr, recipients, raw_message_str)
 
 
 # TODO eventually we'll want to handle other types of payloads

@@ -5,6 +5,25 @@ import json
 import itertools
 from mailaccount import MailAccount
 
+
+def forward(dm_account, recipients, message, raw_message, replacements=[]):
+        raw_string = raw_message.as_string()
+        raw_string_lower = raw_string.lower()
+
+        for rule in replacements:
+            for target in rule['from']:
+                if raw_string_lower.count(target.lower()):
+                    raw_string = raw_string_lower.replace(target.lower(), '[{}]'.format(rule['to']))
+
+        # If a replacement needs to be applied, do it and delete the original
+        if raw_string != raw_message.as_string():
+            print('replacements applied to message')
+            print(raw_string)
+            message.delete()
+
+        dm_account.send_message_raw_string(recipients, raw_string, message.sender)
+
+
 class Filter(object):
     def __init__(self, config_json):
         with open(config_json, 'r') as f:
@@ -17,10 +36,17 @@ class Filter(object):
                 dm_account = MailAccount.from_config_file(account)
 
                 # Filter out blacklisted senders and phrases
-                for message in itertools.islice(dm_account.get_unanswered_messages(), 10):
+                for message, raw_message in itertools.islice(zip(dm_account.get_unanswered_messages(),dm_account.get_unanswered_messages_raw()), 10):
                     if 'simple_blacklist' in filter_group and message.sender_address in filter_group['simple_blacklist']:
                         message.delete()
                         continue
+
+                    # Forward whitelisted senders to the forward_to address
+                    if 'simple_whitelist' in filter_group and message.sender_address in filter_group['simple_whitelist'] and 'forward_to' in filter_group:
+                        if 'replacements' in filter_group:
+                            forward(dm_account, filter_group['forward_to'], message, raw_message, filter_group['replacements'])
+                        else:
+                            forward(dm_account, filter_group['forward_to'], message, raw_message, [])
 
                     if 'blacklist' in filter_group:
                         for blacklist_rule in filter_group['blacklist']:
@@ -46,24 +72,9 @@ class Filter(object):
 
                     # apply replacements by copying the message  replacing all instances of the problem with {What you want instead}, and sending that to self
                     if 'replacements' in filter_group:
-                        # TODO this method discards all the other payloads. Whoops!
-                        new_subject = message.subject.lower()
-                        new_text = message.text.lower()
-                        for rule in filter_group['replacements']:
-                            for target in rule['from']:
-                                if new_subject.count(target.lower()) or new_text.count(target.lower()):
-                                    new_subject = new_subject.replace(target.lower(), '[{}]'.format(rule['to']))
-                                    new_text = new_text.replace(target.lower(), '[{}]'.format(rule['to']))
-
-                        # If a replacement needs to be applied, do it and delete the original
-                        if new_subject != message.subject.lower() or new_text != message.text.lower():
-                            print('replacements applied to message')
-                            print(message)
-                            message.delete()
-                            dm_account.send_message_html(dm_account._email_address, new_subject, new_text)
-
-
-
+                        forward(dm_account, [dm_account._email_address], message, raw_message, filter_group['replacements'])
+                    else:
+                        forward(dm_account, [dm_account._email_address], message, raw_message, [])
 
 if __name__ == "__main__":
     filter = Filter(os.path.join(os.path.expanduser('~'), '.config/downmail/filters.json'))
