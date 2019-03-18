@@ -21,7 +21,7 @@ def forward(dm_account, recipients, message, raw_message, replacements=[]):
             print(raw_string)
             message.delete()
 
-        dm_account.send_message_raw_string(recipients, raw_string, message.sender)
+        dm_account.send_message_raw_string(recipients, raw_string, message.sender_address)
 
 
 class Filter(object):
