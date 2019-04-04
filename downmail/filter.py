@@ -69,6 +69,7 @@ class Filter(object):
                             if should_delete:
                                 print(message)
                                 message.delete()
+                                continue
 
                     # apply replacements by copying the message  replacing all instances of the problem with {What you want instead}, and sending that to self
                     if 'replacements' in filter_group:
